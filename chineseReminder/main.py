@@ -1,3 +1,5 @@
+import dataclasses
+
 import configs # Keep it first!
 
 import csv
@@ -16,7 +18,14 @@ from ui_py.main_gui import Ui_MainWindow as Main_UI_MainWindow
 from ui_py.secondary_gui import Ui_MainWindow as Secondary_UI_MainWindow
 from utils import Statistics
 
+@dataclasses.dataclass
+class Word:
+    chinese: str
+    pinyin: str
+    translations: list[str]
+    difficulty: int
 
+    
 def import_db() -> dict[str, tuple[str, list]]:
     """ Reads the database file into a dictionary of the form:
      {chinese_str: (romanization, translation)}
@@ -39,7 +48,7 @@ def inverse_db(db: dict[str, tuple[str, list]]) -> dict[str, tuple[str, str]]:
     {translation: (romanization, chinese_str)}
     """
     d_out = dict()
-    for chinese_char,(roman,trans) in db.items():
+    for chinese_char, (roman, trans) in db.items():
         for k_inv in trans:
             d_out[k_inv] = (roman, chinese_char)
     return d_out
@@ -66,11 +75,11 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.setWindowTitle("Chinese reminder")
 
         self.db = DB
-        self.chars = list(self.db.keys())
+        # self.chars = list(self.db.keys())
 
         self.current_expected = None
         self.can_do_next = True
-        self.stats = Statistics()
+        self.stats = Statistics(list(self.db.keys()))
 
         self.statusbar.showMessage(str(self.stats))
 
@@ -80,6 +89,7 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
     def connectSignalsSlots(self):
         self.btnInvio.pressed.connect(self.invio)
         self.btnSkip.pressed.connect(self.skip)
+        self.btnReveal.pressed.connect(self.reveal)
 
     def setupMenuBar(self):
         # Setup "Database" main bar entry
@@ -110,6 +120,8 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         user_trans = self.lineTranslation.text().strip().lower()
 
         real_roman, real_trans = self.current_expected
+        real_roman = real_roman.strip().lower()
+        real_trans = [s.strip().lower() for s in real_trans]
 
         if unicodedata.normalize("NFD", user_roman) != unicodedata.normalize("NFD", real_roman):
             self.labelValidRoman.setText("Wrong!")
@@ -136,6 +148,12 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.stats.skipped_answer()
         self.new_character()
 
+    def reveal(self):
+        self.lineRoman.setText(self.current_expected[0])
+        self.lineTranslation.setText(", ".join(self.current_expected[1]))
+        self.stats.wrong_answer()
+
+
     def new_character(self):
         # aesthetic (pre)
         self.lineTranslation.clear()
@@ -145,15 +163,13 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
 
         # internals
         self.can_do_next = False
-        self.stats.new_prompt()
-
-        # new char
-        while not self.acceptable_next(key := random.choice(self.chars)):
-            pass
-
-        # key = random.choice(self.chars)
+        key = self.stats.new_prompt()
         self.current_expected = self.db[key]
-        self.labelCharacter.setText(key)
+
+        html_text = ""
+        for char in key:
+            html_text += f"<a href='https://en.wiktionary.org/wiki/{char}' style='color:black'>{char}</a>"
+        self.labelCharacter.setText(html_text)
 
         # aesthetic (post)
         self.lineRoman.setFocus()
@@ -163,6 +179,7 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         if self.checkBoxLunghe.isChecked():
             return len(chinese_char) > 1
         return True
+
 
 
 ################################################################à
@@ -285,9 +302,12 @@ class ItalianToChineseWindow(QMainWindow, Secondary_UI_MainWindow):
 
 ################################################################à
 
-if __name__ == "__main__":
+def run():
     app = QApplication(sys.argv)
     win = ChineseToItalianWindow()
     # win = ItalianToChineseWindow()
     win.show()
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    run()
