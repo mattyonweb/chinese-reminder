@@ -1,11 +1,7 @@
-import dataclasses
-
 import configs # Keep it first!
 
 import csv
 import sys
-import random
-import unicodedata
 from typing import Any
 
 from PyQt5.QtCore import QAbstractTableModel
@@ -13,23 +9,13 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QAction, QMenu
 )
 
-from ui_py.database_editor_gui import Ui_DatabaseEditor_UI
+from chineseReminder.sentences import SentencesWindow
 from ui_py.main_gui import Ui_MainWindow as Main_UI_MainWindow
-from ui_py.secondary_gui import Ui_MainWindow as Secondary_UI_MainWindow
-from utils import Statistics
+from utils import Word, WordCheck_Result, Statistics_Words
 
-@dataclasses.dataclass
-class Word:
-    chinese: str
-    pinyin: str
-    translations: list[str]
-    difficulty: int
 
-    
-def import_db() -> dict[str, tuple[str, list]]:
-    """ Reads the database file into a dictionary of the form:
-     {chinese_str: (romanization, translation)}
-     """
+def import_db() -> dict[str, Word]:
+    """ Reads the database file into a dictionary. """
     db = dict()
 
     with open(configs.APP_CONFIG.dictionary_fpath, "r") as file:
@@ -38,19 +24,30 @@ def import_db() -> dict[str, tuple[str, list]]:
         for row in tsv_file:
             if len(row) == 0: # handle empty lines that may appear at end
                 continue
-            db[row[0].strip()] = (row[1].strip(), row[2].strip().split(","))
+
+            print(row)
+            chinese, pinyin, translations, difficulty = [x.strip() for x in row]
+
+            db[chinese] = Word(
+                chinese=chinese,
+                pinyin=pinyin,
+                translations=translations.split(","),
+                difficulty=int(difficulty)
+            )
+            # db[row[0].strip()] = (row[1].strip(), row[2].strip().split(","))
 
     return db
 
 
-def inverse_db(db: dict[str, tuple[str, list]]) -> dict[str, tuple[str, str]]:
+def inverse_db(db: dict[str, Word]) -> dict[str, Word]:
     """From the previously imported db/dictionary, invert the index so that you obtain:
     {translation: (romanization, chinese_str)}
     """
     d_out = dict()
-    for chinese_char, (roman, trans) in db.items():
-        for k_inv in trans:
-            d_out[k_inv] = (roman, chinese_char)
+
+    for chinese, word in db.items():
+        for t in word.translations:
+            d_out[t] = word
     return d_out
 
 
@@ -61,29 +58,31 @@ DB_INV = inverse_db(DB)
 
 ################################################################à
 
+
 class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
 
-        self.dbWindow = DatabaseEditorWindow(self)
-        self.secondaryWindow = ItalianToChineseWindow(self)
+        self.sentencesWindow = SentencesWindow(self)
 
         self.connectSignalsSlots()
         self.setupMenuBar()
 
-        self.setWindowTitle("Chinese reminder")
+        self.stats = Statistics_Words(DB)
 
-        self.db = DB
-        # self.chars = list(self.db.keys())
-
-        self.current_expected = None
         self.can_do_next = True
-        self.stats = Statistics(list(self.db.keys()))
 
+        self.setWindowTitle("Chinese reminder")
         self.statusbar.showMessage(str(self.stats))
 
+        self.setupDefaultValues()
         self.new_character()
+
+    def setupDefaultValues(self):
+        self.comboBoxLvl.addItems(["<=", "=", ">="])
+        self.comboBoxLvl.setCurrentText("<=")
+        self.stats.set_lvl_operator("<=")
 
 
     def connectSignalsSlots(self):
@@ -91,57 +90,50 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.btnSkip.pressed.connect(self.skip)
         self.btnReveal.pressed.connect(self.reveal)
 
+        self.spinBoxLvl.valueChanged.connect(self.update_max_lvl)
+        self.comboBoxLvl.textActivated.connect(lambda op_str: self.stats.set_lvl_operator(op_str)) # lambda required
+
     def setupMenuBar(self):
-        # Setup "Database" main bar entry
-        db_sub_menu = QMenu("Database", self)
-        self.mainMenuBar.addMenu(db_sub_menu)
+        """
+        Set up the upper menu bar.
+        """
+        # Setup "Sentences" main bar entry
+        sentences_sub_menu = QMenu("Sentences", self)
+        self.mainMenuBar.addMenu(sentences_sub_menu)
 
-        openDbWindowAction = QAction("&Edit...", db_sub_menu)
-        openDbWindowAction.triggered.connect(lambda: self.dbWindow.show())
-        db_sub_menu.addAction(openDbWindowAction)
+        openSentencesWindowAction = QAction("&Open...", sentences_sub_menu)
+        openSentencesWindowAction.triggered.connect(lambda: self.sentencesWindow.show())
+        sentences_sub_menu.addAction(openSentencesWindowAction)
 
-        # Setup "Inverse" main bar entry (inverse game)
-        inv_sub_menu = QMenu("Inverse", self)
-        self.mainMenuBar.addMenu(inv_sub_menu)
 
-        openSecondaryWindowAction = QAction("&Open...", inv_sub_menu)
-        openSecondaryWindowAction.triggered.connect(lambda: self.secondaryWindow.show())
-        inv_sub_menu.addAction(openSecondaryWindowAction)
-
+    ################### Interactions #######################
 
     def invio(self):
+        """ When the user presses "Send" ... """
         if self.can_do_next:
             self.new_character()
             return
 
-        can_do_next_local = True
+        user_inputted_word = Word(
+            chinese = self.stats.current_val.chinese,
+            pinyin  = self.lineRoman.text().strip().lower(),
+            translations = [self.lineTranslation.text().strip().lower()],
+            difficulty = -1 # meaningless but who cares!
+        )
 
-        user_roman = self.lineRoman.text().strip().lower()
-        user_trans = self.lineTranslation.text().strip().lower()
+        check_result: WordCheck_Result = self.stats.check_given_answer(user_inputted_word)
 
-        real_roman, real_trans = self.current_expected
-        real_roman = real_roman.strip().lower()
-        real_trans = [s.strip().lower() for s in real_trans]
-
-        if unicodedata.normalize("NFD", user_roman) != unicodedata.normalize("NFD", real_roman):
+        if not check_result.pinyin_correct:
             self.labelValidRoman.setText("Wrong!")
-            can_do_next_local = False
         else:
             self.labelValidRoman.setText("Correct!")
 
-
-        if user_trans not in real_trans:
+        if not check_result.translation_correct:
             self.labelValidTranslation.setText("Wrong!")
-            can_do_next_local = False
         else:
             self.labelValidTranslation.setText("Correct!")
 
-
-        if can_do_next_local:
-            self.can_do_next = True
-            self.stats.good_answer()
-        else:
-            self.stats.wrong_answer()
+        self.can_do_next = check_result.is_correct()
 
 
     def skip(self):
@@ -149,10 +141,12 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.new_character()
 
     def reveal(self):
-        self.lineRoman.setText(self.current_expected[0])
-        self.lineTranslation.setText(", ".join(self.current_expected[1]))
+        self.lineRoman.setText(self.stats.current_val.pinyin)
+        self.lineTranslation.setText(", ".join(self.stats.current_val.translations))
         self.stats.wrong_answer()
 
+    def update_max_lvl(self):
+        self.stats.set_lvl(int(self.spinBoxLvl.value()))
 
     def new_character(self):
         # aesthetic (pre)
@@ -163,11 +157,11 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
 
         # internals
         self.can_do_next = False
-        key = self.stats.new_prompt()
-        self.current_expected = self.db[key]
+        self.stats.new_prompt()
 
+        print(self.stats.current_val)
         html_text = ""
-        for char in key:
+        for char in self.stats.current_val.chinese:
             html_text += f"<a href='https://en.wiktionary.org/wiki/{char}' style='color:black'>{char}</a>"
         self.labelCharacter.setText(html_text)
 
@@ -175,129 +169,68 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.lineRoman.setFocus()
         self.statusbar.showMessage(str(self.stats))
 
-    def acceptable_next(self, chinese_char: str):
-        if self.checkBoxLunghe.isChecked():
-            return len(chinese_char) > 1
-        return True
 
 
 
 ################################################################à
-from PyQt5 import QtCore
-from PyQt5.QtCore import QModelIndex, Qt
-
-class VocabularyModel(QAbstractTableModel):
-    def __init__(self, *args, todos=None, **kwargs):
-        self.data = [[k, roman, ",".join(trans)] for k,(roman,trans) in DB.items()]
-        super(VocabularyModel, self).__init__(*args, **kwargs)
-
-    def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
-
-    def headerData(self, section: int, orientation: Qt.Orientation, role=...):
-        if role == QtCore.Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                if section == 0:
-                    return "Chinese"
-                if section == 1:
-                    return "Pinyu"
-                if section == 2:
-                    return "Translation"
-            else:
-                return str(section)
-
-    def columnCount(self, parent=None):
-        return len(self.data[0])
-
-    def rowCount(self, parent=None):
-        return len(self.data)
-
-    def data(self, index: QModelIndex, role=...) -> str:
-        if role in [QtCore.Qt.DisplayRole, QtCore.Qt.EditRole]:
-            row = index.row()
-            col = index.column()
-            return str(self.data[row][col])
-
-    def setData(self, index: QModelIndex, value: Any, role=...) -> bool:
-        if role == Qt.EditRole:
-            if index.column() == 0:
-                if value in [t[0] for t in self.data]:
-                    return False
-
-            self.data[index.row()][index.column()] = value
-            return True
-
-
-class DatabaseEditorWindow(QMainWindow, Ui_DatabaseEditor_UI):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.connectSignalsSlots()
-        self.populateDbWindow()
-
-    def connectSignalsSlots(self):
-        pass
-
-    def populateDbWindow(self):
-        vocMod = VocabularyModel()
-        self.tableView.setModel(vocMod)
+# from PyQt5 import QtCore
+# from PyQt5.QtCore import QModelIndex, Qt
+#
+# class VocabularyModel(QAbstractTableModel):
+#     def __init__(self, *args, todos=None, **kwargs):
+#         self.data = [[k, roman, ",".join(trans)] for k,(roman,trans) in DB.items()]
+#         super(VocabularyModel, self).__init__(*args, **kwargs)
+#
+#     def flags(self, index):
+#         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+#
+#     def headerData(self, section: int, orientation: Qt.Orientation, role=...):
+#         if role == QtCore.Qt.DisplayRole:
+#             if orientation == Qt.Horizontal:
+#                 if section == 0:
+#                     return "Chinese"
+#                 if section == 1:
+#                     return "Pinyu"
+#                 if section == 2:
+#                     return "Translation"
+#             else:
+#                 return str(section)
+#
+#     def columnCount(self, parent=None):
+#         return len(self.data[0])
+#
+#     def rowCount(self, parent=None):
+#         return len(self.data)
+#
+#     def data(self, index: QModelIndex, role=...) -> str:
+#         if role in [QtCore.Qt.DisplayRole, QtCore.Qt.EditRole]:
+#             row = index.row()
+#             col = index.column()
+#             return str(self.data[row][col])
+#
+#     def setData(self, index: QModelIndex, value: Any, role=...) -> bool:
+#         if role == Qt.EditRole:
+#             if index.column() == 0:
+#                 if value in [t[0] for t in self.data]:
+#                     return False
+#
+#             self.data[index.row()][index.column()] = value
+#             return True
 
 
-################################################################à
-
-class ItalianToChineseWindow(QMainWindow, Secondary_UI_MainWindow):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.connectSignalsSlots()
-
-        self.setWindowTitle("Chinese reminder 2")
-
-        self.db_inv = DB_INV
-        self.words = list(self.db_inv.keys())
-
-        self.current_word: str = ""
-        self.current_roman: str = ""
-        self.current_chinese: str = ""
-
-        self.can_do_next = True
-
-        self.new_word()
-
-
-
-    def connectSignalsSlots(self):
-        self.btnInvio.pressed.connect(self.invio)
-
-
-    def invio(self):
-        if self.can_do_next:
-            self.new_word()
-            return
-
-        self.labelCharacter.setText(self.current_chinese)
-        self.lineRoman.setText(self.current_roman)
-        self.btnInvio.setText("Next")
-
-        self.can_do_next = True
-
-
-    def new_word(self):
-        # aesthetic (pre)
-        self.labelCharacter.clear()
-        self.lineRoman.clear()
-        self.btnInvio.setText("Send")
-
-        # internals
-        self.can_do_next = False
-
-        # new char
-        self.current_word = random.choice(self.words)
-        self.current_roman, self.current_chinese = self.db_inv[self.current_word]
-        self.labelWord.setText(self.current_word)
-
-        # aesthetic (post)
-        self.btnInvio.setFocus()
+# class DatabaseEditorWindow(QMainWindow, Ui_DatabaseEditor_UI):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.setupUi(self)
+#         self.connectSignalsSlots()
+#         self.populateDbWindow()
+#
+#     def connectSignalsSlots(self):
+#         pass
+#
+#     def populateDbWindow(self):
+#         vocMod = VocabularyModel()
+#         self.tableView.setModel(vocMod)
 
 
 ################################################################à
@@ -308,6 +241,66 @@ def run():
     # win = ItalianToChineseWindow()
     win.show()
     sys.exit(app.exec())
+
+
+################################################################à
+
+# class ItalianToChineseWindow(QMainWindow, Secondary_UI_MainWindow):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.setupUi(self)
+#         self.connectSignalsSlots()
+# 
+#         self.setWindowTitle("Chinese reminder 2")
+# 
+#         self.db_inv = DB_INV
+#         self.words = list(self.db_inv.keys())
+# 
+#         self.current_word: str = ""
+#         self.current_roman: str = ""
+#         self.current_chinese: str = ""
+# 
+#         self.can_do_next = True
+# 
+#         self.new_word()
+# 
+# 
+# 
+#     def connectSignalsSlots(self):
+#         self.btnInvio.pressed.connect(self.invio)
+# 
+# 
+#     def invio(self):
+#         if self.can_do_next:
+#             self.new_word()
+#             return
+# 
+#         self.labelCharacter.setText(self.current_chinese)
+#         self.lineRoman.setText(self.current_roman)
+#         self.btnInvio.setText("Next")
+# 
+#         self.can_do_next = True
+# 
+# 
+#     def new_word(self):
+#         # aesthetic (pre)
+#         self.labelCharacter.clear()
+#         self.lineRoman.clear()
+#         self.btnInvio.setText("Send")
+# 
+#         # internals
+#         self.can_do_next = False
+# 
+#         # new char
+#         self.current_word = random.choice(self.words)
+#         self.current_roman, self.current_chinese = self.db_inv[self.current_word]
+#         self.labelWord.setText(self.current_word)
+# 
+#         # aesthetic (post)
+#         self.btnInvio.setFocus()
+
+
+
 
 if __name__ == "__main__":
     run()

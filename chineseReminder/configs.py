@@ -24,6 +24,13 @@ class Configuration:
         else:
             self.dictionary_fpath = CONFIG_DIR / "dictionary.tsv"
 
+        # italian - chinese sentences database
+        if "sentences_fpath" in d:
+            self.sentences_fpath = Path(d["sentences_fpath"])
+        else:
+            self.sentences_fpath = CONFIG_DIR / "sentences.tsv"
+
+
 
 def read_config_file():
     """ Read config file if it exists, otherwise create an empty one """

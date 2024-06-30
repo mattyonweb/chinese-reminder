@@ -10,8 +10,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>518</width>
-    <height>160</height>
+    <width>537</width>
+    <height>165</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -208,7 +208,7 @@
    <widget class="QSpinBox" name="spinBoxLvl">
     <property name="geometry">
      <rect>
-      <x>440</x>
+      <x>490</x>
       <y>80</y>
       <width>42</width>
       <height>27</height>
@@ -218,14 +218,36 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>440</x>
+      <x>490</x>
       <y>60</y>
-      <width>58</width>
+      <width>41</width>
       <height>18</height>
      </rect>
     </property>
     <property name="text">
      <string>Level:</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="comboBoxLvl">
+    <property name="geometry">
+     <rect>
+      <x>440</x>
+      <y>80</y>
+      <width>41</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="acceptDrops">
+     <bool>true</bool>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="editable">
+     <bool>false</bool>
+    </property>
+    <property name="placeholderText">
+     <string>Foovar</string>
     </property>
    </widget>
   </widget>
@@ -235,7 +257,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>518</width>
+     <width>537</width>
      <height>23</height>
     </rect>
    </property>
