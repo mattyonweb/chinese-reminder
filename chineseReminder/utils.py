@@ -1,47 +1,17 @@
 import dataclasses
 from math import atan
 import random
-import unicodedata
 from typing import *
 
 @dataclasses.dataclass
-class WordCheck_Result:
-    translation_correct: bool
-    pinyin_correct: bool
-
-    def is_correct(self):
-        return self.translation_correct and self.pinyin_correct
-
-@dataclasses.dataclass
-class Word:
-    chinese: str
-    pinyin: str
-    translations: list[str]
-    difficulty: int
-
-    def is_compatible_with(self, other: "Word") -> WordCheck_Result:
-        w1_chinese, w2_chinese = self.chinese.strip().lower(), other.chinese.strip().lower()
-        assert w1_chinese == w2_chinese  # just a sanity check
-
-        w1_pinyin = unicodedata.normalize("NFD", self.pinyin.strip().lower())
-        w2_pinyin = unicodedata.normalize("NFD", other.pinyin.strip().lower())
-
-        # One of [self, other] will be the expected word (= may have more than 1 translation) while
-        # the other will be the user-inputted word (= only 1 translation, of course). Since I don't want
-        # to impose an un-enforceable calling order to `is_compatible_with`, we need to use
-        # this ugly hack
-        w1_trans, w2_trans = set(self.translations), set(other.translations)
-
-        return WordCheck_Result(
-            translation_correct = w1_trans.issubset(w2_trans) or w2_trans.issubset(w1_trans),
-            pinyin_correct = w1_pinyin == w2_pinyin,
-        )
+class CheckResult:
+    def is_correct(self) -> bool:
+        return False
 
 # =============================================================
 
 K = TypeVar('K')
 V = TypeVar('V')
-
 class Statistics(Generic[K, V]):
     def __init__(self, db: dict[K, V]):
         self.prompts = 0
@@ -62,10 +32,6 @@ class Statistics(Generic[K, V]):
         return f"Prompts: {self.prompts} | Ok: {self.giusti} | Wrong: {self.sbagliati} | Skip: {self.skippati} | Sum: {sum(self.weights)}"
 
     def new_prompt(self) -> tuple[K, V]:
-        # for k, v in zip(self.keys, self.weights):
-        #     print(k, v)
-        # print("=================================")
-
         self.current_key, self.current_val = self.choose_new_prompt()
         self.turn_is_ongoing = True
         self.prompts += 1
@@ -73,7 +39,7 @@ class Statistics(Generic[K, V]):
         return self.current_key, self.current_val
 
 
-    def choose_new_prompt(self) -> V:
+    def choose_new_prompt(self) -> tuple[K,V]:
         while True:
             candidate_key: K   = random.choices(population=self.keys, weights=self.weights, k=1)[0]
             candidate_value: V = self.db[candidate_key]
@@ -105,13 +71,13 @@ class Statistics(Generic[K, V]):
         self.weights = [w * new_partial_sum / old_partial_sum for w in self.weights]
         self.weights[idx] = new_probability
 
-        # print(self.weights[idx])
+        print(self.weights[idx])
 
 
-    def check_given_answer(self, answer: V) -> WordCheck_Result:
-        check_result: WordCheck_Result = self.current_val.is_compatible_with(answer)
+    def check_given_answer(self, answer: V) -> CheckResult:
+        check_result: CheckResult = self.current_val.is_compatible_with(answer)
 
-        if check_result.pinyin_correct and check_result.translation_correct:
+        if check_result.is_correct():
             self.good_answer()
         else:
             self.wrong_answer()
@@ -139,30 +105,5 @@ class Statistics(Generic[K, V]):
             self.turn_is_ongoing = False
 
 
-    def is_acceptable_next_prompt(self, candidate_value: V) -> bool:
+    def is_acceptable_next_prompt(self, _candidate_value: V) -> bool:
         return True
-
-
-# ==========================================================================
-# ==========================================================================
-
-OPERATORS_TRANSLATION: dict[str, callable] = {
-    "<=" : (lambda x,y: x<=y),
-    "=" : (lambda x,y: x==y),
-    ">=" : (lambda x,y: x>=y)
-}
-
-class Statistics_Words(Statistics[str, Word]):
-    def __init__(self, db: dict[str, Word]):
-        super().__init__(db)
-        self.lvl = 0
-        self.lvl_operator: Callable[[Any, Any], bool] = lambda x,y: True
-
-    def is_acceptable_next_prompt(self, candidate_value: Word) -> bool:
-        return self.lvl_operator(candidate_value.difficulty, self.lvl)
-
-    def set_lvl(self, lvl: int):
-        self.lvl = lvl
-
-    def set_lvl_operator(self, op_str: str):
-        self.lvl_operator = OPERATORS_TRANSLATION[op_str]

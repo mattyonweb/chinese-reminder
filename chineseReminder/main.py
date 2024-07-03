@@ -1,173 +1,17 @@
 import configs # Keep it first!
-
-import csv
 import sys
-from typing import Any
+from PyQt5.QtWidgets import QApplication
+from chineseReminder.words_from_chinese import ChineseToItalianWindow
 
-from PyQt5.QtCore import QAbstractTableModel
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QAction, QMenu
-)
+def run():
+    app = QApplication(sys.argv)
+    win = ChineseToItalianWindow()
+    win.show()
+    sys.exit(app.exec())
 
-from chineseReminder.sentences import SentencesWindow
-from ui_py.main_gui import Ui_MainWindow as Main_UI_MainWindow
-from utils import Word, WordCheck_Result, Statistics_Words
+if __name__ == "__main__":
+    run()
 
-
-def import_db() -> dict[str, Word]:
-    """ Reads the database file into a dictionary. """
-    db = dict()
-
-    with open(configs.APP_CONFIG.dictionary_fpath, "r") as file:
-        tsv_file = csv.reader(file, delimiter="\t")
-
-        for row in tsv_file:
-            if len(row) == 0: # handle empty lines that may appear at end
-                continue
-
-            print(row)
-            chinese, pinyin, translations, difficulty = [x.strip() for x in row]
-
-            db[chinese] = Word(
-                chinese=chinese,
-                pinyin=pinyin,
-                translations=translations.split(","),
-                difficulty=int(difficulty)
-            )
-            # db[row[0].strip()] = (row[1].strip(), row[2].strip().split(","))
-
-    return db
-
-
-def inverse_db(db: dict[str, Word]) -> dict[str, Word]:
-    """From the previously imported db/dictionary, invert the index so that you obtain:
-    {translation: (romanization, chinese_str)}
-    """
-    d_out = dict()
-
-    for chinese, word in db.items():
-        for t in word.translations:
-            d_out[t] = word
-    return d_out
-
-
-
-DB = import_db()
-DB_INV = inverse_db(DB)
-
-
-################################################################à
-
-
-class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-
-        self.sentencesWindow = SentencesWindow(self)
-
-        self.connectSignalsSlots()
-        self.setupMenuBar()
-
-        self.stats = Statistics_Words(DB)
-
-        self.can_do_next = True
-
-        self.setWindowTitle("Chinese reminder")
-        self.statusbar.showMessage(str(self.stats))
-
-        self.setupDefaultValues()
-        self.new_character()
-
-    def setupDefaultValues(self):
-        self.comboBoxLvl.addItems(["<=", "=", ">="])
-        self.comboBoxLvl.setCurrentText("<=")
-        self.stats.set_lvl_operator("<=")
-
-
-    def connectSignalsSlots(self):
-        self.btnInvio.pressed.connect(self.invio)
-        self.btnSkip.pressed.connect(self.skip)
-        self.btnReveal.pressed.connect(self.reveal)
-
-        self.spinBoxLvl.valueChanged.connect(self.update_max_lvl)
-        self.comboBoxLvl.textActivated.connect(lambda op_str: self.stats.set_lvl_operator(op_str)) # lambda required
-
-    def setupMenuBar(self):
-        """
-        Set up the upper menu bar.
-        """
-        # Setup "Sentences" main bar entry
-        sentences_sub_menu = QMenu("Sentences", self)
-        self.mainMenuBar.addMenu(sentences_sub_menu)
-
-        openSentencesWindowAction = QAction("&Open...", sentences_sub_menu)
-        openSentencesWindowAction.triggered.connect(lambda: self.sentencesWindow.show())
-        sentences_sub_menu.addAction(openSentencesWindowAction)
-
-
-    ################### Interactions #######################
-
-    def invio(self):
-        """ When the user presses "Send" ... """
-        if self.can_do_next:
-            self.new_character()
-            return
-
-        user_inputted_word = Word(
-            chinese = self.stats.current_val.chinese,
-            pinyin  = self.lineRoman.text().strip().lower(),
-            translations = [self.lineTranslation.text().strip().lower()],
-            difficulty = -1 # meaningless but who cares!
-        )
-
-        check_result: WordCheck_Result = self.stats.check_given_answer(user_inputted_word)
-
-        if not check_result.pinyin_correct:
-            self.labelValidRoman.setText("Wrong!")
-        else:
-            self.labelValidRoman.setText("Correct!")
-
-        if not check_result.translation_correct:
-            self.labelValidTranslation.setText("Wrong!")
-        else:
-            self.labelValidTranslation.setText("Correct!")
-
-        self.can_do_next = check_result.is_correct()
-
-
-    def skip(self):
-        self.stats.skipped_answer()
-        self.new_character()
-
-    def reveal(self):
-        self.lineRoman.setText(self.stats.current_val.pinyin)
-        self.lineTranslation.setText(", ".join(self.stats.current_val.translations))
-        self.stats.wrong_answer()
-
-    def update_max_lvl(self):
-        self.stats.set_lvl(int(self.spinBoxLvl.value()))
-
-    def new_character(self):
-        # aesthetic (pre)
-        self.lineTranslation.clear()
-        self.lineRoman.clear()
-        self.labelValidRoman.clear()
-        self.labelValidTranslation.clear()
-
-        # internals
-        self.can_do_next = False
-        self.stats.new_prompt()
-
-        print(self.stats.current_val)
-        html_text = ""
-        for char in self.stats.current_val.chinese:
-            html_text += f"<a href='https://en.wiktionary.org/wiki/{char}' style='color:black'>{char}</a>"
-        self.labelCharacter.setText(html_text)
-
-        # aesthetic (post)
-        self.lineRoman.setFocus()
-        self.statusbar.showMessage(str(self.stats))
 
 
 
@@ -235,12 +79,6 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
 
 ################################################################à
 
-def run():
-    app = QApplication(sys.argv)
-    win = ChineseToItalianWindow()
-    # win = ItalianToChineseWindow()
-    win.show()
-    sys.exit(app.exec())
 
 
 ################################################################à
@@ -302,5 +140,4 @@ def run():
 
 
 
-if __name__ == "__main__":
-    run()
+

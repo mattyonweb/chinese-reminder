@@ -20,7 +20,7 @@
       <x>10</x>
       <y>10</y>
       <width>491</width>
-      <height>100</height>
+      <height>109</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -41,6 +41,11 @@
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
           <widget class="QLineEdit" name="lineChinese">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="placeholderText">
             <string>translation</string>
            </property>
