@@ -1,16 +1,15 @@
 import csv
 import dataclasses
 import unicodedata
+import logging
 from typing import Callable, Any, Optional
 
-from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QMainWindow, QAction, QMenu, QMessageBox)
 
 from chineseReminder import configs
 from chineseReminder.sentences import SentencesWindow
-from chineseReminder.utils import V
-from ui_py.main_gui import Ui_MainWindow as Main_UI_MainWindow
-from utils import Statistics, CheckResult
+from chineseReminder.ui_py.main_gui import Ui_MainWindow as Main_UI_MainWindow
+from chineseReminder.utils import Statistics, CheckResult
 
 
 @dataclasses.dataclass
@@ -57,11 +56,13 @@ def import_db() -> dict[str, Word]:
     with open(configs.APP_CONFIG.dictionary_fpath, "r") as file:
         tsv_file = csv.reader(file, delimiter="\t")
 
+        next(tsv_file, None)  # skip header
+
         for row in tsv_file:
             if len(row) == 0: # handle empty lines that may appear at end
                 continue
 
-            print(row)
+            logging.debug(row)
             chinese, pinyin, translations, difficulty = [x.strip() for x in row]
 
             db[chinese] = Word(
@@ -74,14 +75,14 @@ def import_db() -> dict[str, Word]:
     return db
 
 
-# def inverse_db(db: dict[str, Word]) -> dict[str, Word]:
+# def inverse_db(examples: dict[str, Word]) -> dict[str, Word]:
 #     """
-#     From the previously imported db/dictionary, invert the index so that you obtain:
+#     From the previously imported examples/dictionary, invert the index so that you obtain:
 #     {translation: (romanization, chinese_str)}
 #     """
 #     d_out = dict()
 #
-#     for chinese, word in db.items():
+#     for chinese, word in examples.items():
 #         for t in word.translations:
 #             d_out[t] = word
 #     return d_out
@@ -194,7 +195,7 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.can_do_next = False
         self.stats.new_prompt()
 
-        print(self.stats.current_val)
+        logging.debug(self.stats.current_val)
         html_text = ""
         for char in self.stats.current_val.chinese:
             html_text += f"<a href='https://en.wiktionary.org/wiki/{char}' style='color:black'>{char}</a>"

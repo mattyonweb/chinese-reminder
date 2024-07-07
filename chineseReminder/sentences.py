@@ -1,11 +1,11 @@
 import csv
 import dataclasses
 
-from PyQt5.QtWidgets import QMainWindow, QMenu, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QMessageBox
 
 from chineseReminder import configs
 from chineseReminder.utils import Statistics, CheckResult
-from ui_py.sentences_gui import Ui_SentencesWindow_UI
+from chineseReminder.ui_py.sentences_gui import Ui_SentencesWindow_UI
 
 @dataclasses.dataclass
 class SentenceCheck_Result(CheckResult):

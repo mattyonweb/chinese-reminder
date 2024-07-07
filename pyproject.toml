@@ -12,3 +12,6 @@ dependencies = [
 
 [project.scripts]
 chinese-reminder = "chineseReminder.main:run"
+
+[tool.setuptools]
+packages = ["chineseReminder","chineseReminder.ui_py"]
