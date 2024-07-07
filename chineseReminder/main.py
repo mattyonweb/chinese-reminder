@@ -1,4 +1,4 @@
-import configs # Keep it first!
+import chineseReminder.configs # Keep it first! Don't remove it!
 import sys
 from PyQt5.QtWidgets import QApplication
 from chineseReminder.words_from_chinese import ChineseToItalianWindow
