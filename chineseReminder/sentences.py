@@ -67,19 +67,20 @@ class SentencesWindow(QMainWindow, Ui_SentencesWindow_UI):
 
         self.can_do_next = False
 
-        self.new_character()
+        self.new_sentence()
 
     def connectSignalsSlots(self):
         self.btnInvio.pressed.connect(self.invio)
         self.btnSkip.pressed.connect(self.skip)
         self.btnReveal.pressed.connect(self.reveal)
+        self.btnReset.pressed.connect(self.reset)
 
     ################### Interactions #######################
 
     def invio(self):
         """ When the user presses "Send" ... """
         if self.can_do_next:
-            self.new_character()
+            self.new_sentence()
             return
 
         user_inputted_sentence: Sentence = Sentence(
@@ -99,13 +100,17 @@ class SentencesWindow(QMainWindow, Ui_SentencesWindow_UI):
 
     def skip(self):
         self.stats.skipped_answer()
-        self.new_character()
+        self.new_sentence()
 
     def reveal(self):
         self.lineChinese.setText(", ".join(self.stats.current_val.expected_translation))
         self.stats.wrong_answer()
 
-    def new_character(self):
+    def reset(self):
+        self.stats.reset()
+        self.new_sentence()
+
+    def new_sentence(self):
         # aesthetic (pre)
         self.lineChinese.clear()
         self.lineItalian.clear()

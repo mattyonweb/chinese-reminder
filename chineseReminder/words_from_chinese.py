@@ -125,6 +125,7 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.btnInvio.pressed.connect(self.invio)
         self.btnSkip.pressed.connect(self.skip)
         self.btnReveal.pressed.connect(self.reveal)
+        self.btnReset.pressed.connect(self.reset)
 
         self.spinBoxLvl.valueChanged.connect(self.update_max_lvl)
         self.comboBoxLvl.textActivated.connect(lambda op_str: self.stats.set_lvl_operator(op_str)) # lambda required
@@ -180,6 +181,10 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.lineRoman.setText(self.stats.current_val.pinyin)
         self.lineTranslation.setText(", ".join(self.stats.current_val.translations))
         self.stats.wrong_answer()
+
+    def reset(self):
+        self.stats.reset()
+        self.new_character()
 
     def update_max_lvl(self):
         self.stats.set_lvl(int(self.spinBoxLvl.value()))

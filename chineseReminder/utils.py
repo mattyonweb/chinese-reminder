@@ -29,7 +29,7 @@ class Statistics(Generic[K, V]):
 
 
     def __str__(self):
-        return f"Prompts: {self.prompts} | Ok: {self.giusti} | Wrong: {self.sbagliati} | Skip: {self.skippati} | Sum: {sum(self.weights)}"
+        return f"Prompts: {self.prompts} | Ok: {self.giusti} | Wrong: {self.sbagliati} | Skip: {self.skippati}"
 
     def new_prompt(self) -> tuple[K, V]:
         self.current_key, self.current_val = self.choose_new_prompt()
@@ -107,3 +107,10 @@ class Statistics(Generic[K, V]):
 
     def is_acceptable_next_prompt(self, _candidate_value: V) -> bool:
         return True
+
+    def reset(self):
+        self.weights = [1 / len(self.keys) for _ in self.keys]
+        self.skippati  = 0
+        self.sbagliati = 0
+        self.giusti    = 0
+        self.prompts   = 0
