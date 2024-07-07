@@ -2,7 +2,9 @@ import csv
 import dataclasses
 import unicodedata
 from typing import Callable, Any, Optional
-from PyQt5.QtWidgets import (QMainWindow, QAction, QMenu)
+
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import (QMainWindow, QAction, QMenu, QMessageBox)
 
 from chineseReminder import configs
 from chineseReminder.sentences import SentencesWindow
@@ -72,17 +74,17 @@ def import_db() -> dict[str, Word]:
     return db
 
 
-def inverse_db(db: dict[str, Word]) -> dict[str, Word]:
-    """
-    From the previously imported db/dictionary, invert the index so that you obtain:
-    {translation: (romanization, chinese_str)}
-    """
-    d_out = dict()
-
-    for chinese, word in db.items():
-        for t in word.translations:
-            d_out[t] = word
-    return d_out
+# def inverse_db(db: dict[str, Word]) -> dict[str, Word]:
+#     """
+#     From the previously imported db/dictionary, invert the index so that you obtain:
+#     {translation: (romanization, chinese_str)}
+#     """
+#     d_out = dict()
+#
+#     for chinese, word in db.items():
+#         for t in word.translations:
+#             d_out[t] = word
+#     return d_out
 
 
 ###################################################################
@@ -93,12 +95,16 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         super().__init__(parent)
         self.setupUi(self)
 
-        self.sentencesWindow = SentencesWindow(self)
+        self.sentencesWindow_obj = SentencesWindow
 
         self.connectSignalsSlots()
         self.setupMenuBar()
 
-        self.stats: Statistics_Words = Statistics_Words(db if db is not None else import_db())
+        try:
+            self.stats: Statistics_Words = Statistics_Words(db if db is not None else import_db())
+        except FileNotFoundError:
+            self.stats: Statistics_Words = Statistics_Words(dict())
+            self.show_error_message_file_not_found()
 
         self.can_do_next = True
 
@@ -131,7 +137,7 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         self.mainMenuBar.addMenu(sentences_sub_menu)
 
         openSentencesWindowAction = QAction("&Open...", sentences_sub_menu)
-        openSentencesWindowAction.triggered.connect(lambda: self.sentencesWindow.show())
+        openSentencesWindowAction.triggered.connect(lambda: self.sentencesWindow_obj(self).show())
         sentences_sub_menu.addAction(openSentencesWindowAction)
 
 
@@ -197,6 +203,14 @@ class ChineseToItalianWindow(QMainWindow, Main_UI_MainWindow):
         # aesthetic (post)
         self.lineRoman.setFocus()
         self.statusbar.showMessage(str(self.stats))
+
+    def show_error_message_file_not_found(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText(f"No TSV (Tab Separated Values) dictionary file found at:")
+        msg.setInformativeText(f"\n{configs.APP_CONFIG.dictionary_fpath}\n\nThe program will likely fail.\n")
+        msg.setWindowTitle("Error")
+        msg.exec_()
 
 
 ####################################################################

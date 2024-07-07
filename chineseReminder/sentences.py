@@ -1,13 +1,11 @@
 import csv
 import dataclasses
 
-from PyQt5.QtWidgets import QMainWindow, QMenu
+from PyQt5.QtWidgets import QMainWindow, QMenu, QMessageBox
 
 from chineseReminder import configs
 from chineseReminder.utils import Statistics, CheckResult
 from ui_py.sentences_gui import Ui_SentencesWindow_UI
-
-
 
 @dataclasses.dataclass
 class SentenceCheck_Result(CheckResult):
@@ -61,7 +59,12 @@ class SentencesWindow(QMainWindow, Ui_SentencesWindow_UI):
 
         self.setWindowTitle("Chinese reminder - Sentences")
 
-        self.stats = Statistics_Sentences(import_sentences_db())
+        try:
+            self.stats = Statistics_Sentences(import_sentences_db())
+        except FileNotFoundError:
+            self.show_error_message_file_not_found()
+            self.stats = Statistics_Sentences(dict())
+
         self.can_do_next = False
 
         self.new_character()
@@ -119,7 +122,13 @@ class SentencesWindow(QMainWindow, Ui_SentencesWindow_UI):
         self.lineChinese.setFocus()
         self.statusbar.showMessage(str(self.stats))
 
-
+    def show_error_message_file_not_found(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText(f"No TSV (Tab Separated Values) dictionary file found at:")
+        msg.setInformativeText(f"\n{configs.APP_CONFIG.sentences_fpath}\n\nThe program will likely fail.\n")
+        msg.setWindowTitle("Error")
+        msg.exec_()
 
 
 class Statistics_Sentences(Statistics[str, Sentence]):

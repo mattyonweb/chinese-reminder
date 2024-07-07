@@ -1,0 +1,14 @@
+[project]
+name = "chineseReminder"
+authors = [
+    {name = "Matteo Cavada", email = "matteo.cavada@inventati.org"},
+]
+description = "A Qt5 app for memorizing chinese words."
+version = "0.0.1"
+dependencies = [
+    "PyQt5>=5.15.10",
+    "platformdirs>=4.2.2",
+]
+
+[project.scripts]
+chinese-reminder = "chineseReminder.main:run"
