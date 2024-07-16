@@ -97,6 +97,7 @@ class Ui_MainWindow(object):
         self.btnSkip.setObjectName("btnSkip")
         self.horizontalLayout.addWidget(self.btnSkip)
         self.btnReveal = QtWidgets.QPushButton(self.layoutWidget)
+        self.btnReveal.setAutoDefault(True)
         self.btnReveal.setObjectName("btnReveal")
         self.horizontalLayout.addWidget(self.btnReveal)
         self.verticalLayout.addLayout(self.horizontalLayout)
