@@ -39,7 +39,8 @@ class Word:
         # the other will be the user-inputted word (= only 1 translation, of course). Since I don't want
         # to impose an un-enforceable calling order to `is_compatible_with`, we need to use
         # this ugly hack
-        w1_trans, w2_trans = set(self.translations), set(other.translations)
+        w1_trans = set([t.lower() for t in self.translations])
+        w2_trans = set([t.lower() for t in other.translations])
 
         return WordCheck_Result(
             translation_correct = w1_trans.issubset(w2_trans) or w2_trans.issubset(w1_trans),
