@@ -5,7 +5,7 @@ import json
 import shutil
 
 # Important global variables
-APPNAME = "chinese-remainder"
+APPNAME = "chinese-reminder"
 CONFIG_DIR  = Path(user_config_dir(APPNAME, version="V1"))
 CONFIG_FILE = CONFIG_DIR / "config.json"
 

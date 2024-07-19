@@ -54,7 +54,7 @@ def import_db() -> dict[str, Word]:
     """ Reads the database file into a dictionary. """
     db = dict()
 
-    with open(configs.APP_CONFIG.dictionary_fpath, "r") as file:
+    with open(configs.APP_CONFIG.dictionary_fpath, "r", encoding="UTF-8") as file:
         tsv_file = csv.reader(file, delimiter="\t")
 
         next(tsv_file, None)  # skip header

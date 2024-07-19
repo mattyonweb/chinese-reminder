@@ -21,9 +21,19 @@ chinese-reminder
 
 If there are no installed dictionary files, the default one will be used (see `examples` directory).
 
+### Running on Windows
+
+Analogous steps should be followed to install the source code on Windows.
+
+Note that, while being functionally equivalent to Linux, for some reason the GUI looks uglier on Windows.
+
 ## Dictionary files
 
 Dictionary files are TSV (Tab-Separated Values) files such as the one in the `examples` directory. 
+
+On Linux, these files are stored in: `~/.local/share/chinese-reminder/V1`
+
+On Windows, these files are stored in: `C:\Users\<insert-here-your-user>\AppData\Local\chinese-reminder\chinese-reminder\V1`.
 
 The words dictionary is called `dictionary.tsv` and must look like this:
 

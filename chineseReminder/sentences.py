@@ -35,7 +35,7 @@ class Sentence:
 
 def import_sentences_db() -> dict[str, Sentence]:
     db = dict()
-    with open(configs.APP_CONFIG.sentences_fpath, "r") as file:
+    with open(configs.APP_CONFIG.sentences_fpath, "r", encoding="UTF-8") as file:
         tsv = csv.reader(file, delimiter="\t")
 
         next(tsv, None)  # skip headers
